@@ -38,7 +38,7 @@ def move_piece(board, move):
         print("Illegal move.")
         return False
     
-def score(board):
+def score_bored(board):
     white_score = 0
     black_score = 0
 
@@ -50,18 +50,35 @@ def score(board):
 
     return white_score - black_score
 
+def get_best_move(board):
+    best_move = None
+    best_score = -float('inf')
+
+    for move in board.legal_moves:
+        board.push(move)
+        score = score_bored(board)
+        board.pop()
+
+        if score > best_score:
+            best_score = score
+            best_move = move
+
+    return best_move
+
+
 def main():
     board = chess.Board()
     player_color = input("Choose your color (w for White, b for Black): ")
     player_color = player_color.lower()
 
+   
     while not board.is_game_over():
         print("\n")
         print(" ------------------------- ")
         print("   F * Y * O * D * O * R   ")
         print(" ------------------------- ")
         print("\n")
-        print(f'Current Score: {score(board)}')
+        print(f'Current Score: {score_bored(board)}')
         print_board(board)
         if (board.turn == chess.WHITE and player_color == 'w') or (board.turn == chess.BLACK and player_color == 'b'):
             print("Possible moves:")
@@ -79,15 +96,10 @@ def main():
                     print("FYODOR recommends: " + str(main_entry.move))
                     board.push(main_entry.move)  # FYODOR makes a move
             except:
-                print("No recommended move from opening book. FYODOR passes the move to you.")
-                print("Possible moves:")
-                for move in board.legal_moves:
-                    print(move)
-                move = input("Enter your move for FYODOR: ")
-                if move == 'q':
-                    break
-                if move_piece(board, move):
-                    print_board(board)
+                print("No recommended move from opening book. FYODOR will select the best move.")
+                move = get_best_move(board)
+                print("FYODOR recommends: " + str(move))
+                board.push(move)
 
 if __name__ == "__main__":
     main()
