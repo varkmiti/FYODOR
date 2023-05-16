@@ -128,7 +128,7 @@ def main():
     player_color = input("Choose your color (w for White, b for Black): ")
     player_color = player_color.lower()
 
-    opening_books = ['./Human.bin', './baron30.bin']  # list of your opening books
+    opening_books = ['./baron30.bin', './Human.bin']  # list of your opening books
 
     while not board.is_game_over():
         print("\n")
