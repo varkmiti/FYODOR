@@ -3,6 +3,7 @@ import chess.polyglot
 from colored import fg, bg, attr
 from tqdm import tqdm
 import time
+import requests
 
 def print_board(board):
     # Define color scheme
@@ -55,15 +56,20 @@ def score_board(board):
 
     return score
 
-def minimax(board, depth, alpha, beta, is_maximizing_player):
+def minimax(board, depth, alpha, beta, is_maximizing_player, fyodor_color):
+
     if depth == 0 or board.is_game_over():
-        return score_board(board)
+        score = score_board(board)
+        # reverse score if FYODOR is black
+        if fyodor_color == chess.BLACK:
+            score = -score
+        return score
 
     if is_maximizing_player:
         max_eval = -float('inf')
         for move in board.legal_moves:
             board.push(move)
-            eval = minimax(board, depth - 1, alpha, beta, False)
+            eval = minimax(board, depth - 1, alpha, beta, False, fyodor_color)
             board.pop()
             max_eval = max(max_eval, eval)
             alpha = max(alpha, eval)
@@ -74,7 +80,7 @@ def minimax(board, depth, alpha, beta, is_maximizing_player):
         min_eval = float('inf')
         for move in board.legal_moves:
             board.push(move)
-            eval = minimax(board, depth - 1, alpha, beta, True)
+            eval = minimax(board, depth - 1, alpha, beta, True, fyodor_color)
             board.pop()
             min_eval = min(min_eval, eval)
             beta = min(beta, eval)
@@ -86,16 +92,31 @@ def get_best_move(board, depth):
     best_move = None
     best_score = -float('inf')
 
+    fen = board.fen()
+    try:
+        response = requests.get(f'https://tablebase.lichess.ovh/standard?fen={fen}')
+        if response.status_code == 200:
+            data = response.json()
+            best_move = data['bestMove']
+            return chess.Move.from_uci(best_move)
+    except:
+        pass
+
     moves = list(board.legal_moves)
     with tqdm(total=len(moves), desc="FYODOR is thinking") as pbar:
         for move in moves:
             board.push(move)
-            score = minimax(board, depth-1, -float('inf'), float('inf'), False)
+            score = minimax(board, depth-1, -float('inf'), float('inf'), False, board.turn)
             board.pop()
 
-            if score > best_score:
-                best_score = score
-                best_move = move
+            if board.turn == chess.WHITE:  # FYODOR is playing as white
+                if score > best_score:
+                    best_score = score
+                    best_move = move
+            else:  # FYODOR is playing as black
+                if best_move is None or score < best_score:
+                    best_score = score
+                    best_move = move
 
             pbar.update(1)
             time.sleep(0.01)  # optional, to slow down the bar
@@ -115,24 +136,21 @@ def main():
         print("   F * Y * O * D * O * R   ")
         print(" ------------------------- ")
         print("\n")
-        print(f'Current Score: {score_bored(board)}')
+        print(f'Current Score: {score_board(board)}')
         print_board(board)
         if (board.turn == chess.WHITE and player_color == 'w') or (board.turn == chess.BLACK and player_color == 'b'):
-            print("Possible moves:")
-            for move in board.legal_moves:
-                print(move)
             move = input("Enter your move: ")
             if move == 'q':
                 break
             if move_piece(board, move):
-                print_board(board)
+                print("Moved!")
         else:
             moved = False
             for book in opening_books:
                 try:
                     with chess.polyglot.open_reader(book) as reader:
                         main_entry = reader.weighted_choice(board)
-                        print("FYODOR recommends: " + str(main_entry.move))
+                        print("FYODOR recommends: " + str(main_entry.move) + " From Book: " + str(book))
                         board.push(main_entry.move)  # FYODOR makes a move
                         moved = True
                         break
