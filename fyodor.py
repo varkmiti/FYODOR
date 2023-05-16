@@ -1,6 +1,8 @@
 import chess
 import chess.polyglot
 from colored import fg, bg, attr
+from tqdm import tqdm
+import time
 
 def print_board(board):
     # Define color scheme
@@ -39,29 +41,58 @@ def move_piece(board, move):
         return False
     
 def score_bored(board):
-    white_score = 0
-    black_score = 0
+    if board.is_checkmate():
+        if board.turn:
+            return -float('inf')
+        else:
+            return float('inf')
 
+    score = 0
     piece_values = {'P': 1, 'N': 3, 'B': 3, 'R': 5, 'Q': 9, 'K': 0}
-
     for (piece, value) in piece_values.items():
-        white_score += len(board.pieces(chess.PIECE_SYMBOLS.index(piece.lower()), chess.WHITE)) * value
-        black_score += len(board.pieces(chess.PIECE_SYMBOLS.index(piece.lower()), chess.BLACK)) * value
+        score += len(board.pieces(chess.PIECE_SYMBOLS.index(piece.lower()), chess.WHITE)) * value
+        score -= len(board.pieces(chess.PIECE_SYMBOLS.index(piece.lower()), chess.BLACK)) * value
 
-    return white_score - black_score
+    return score
 
-def get_best_move(board):
+def minimax(board, depth, is_maximizing_player):
+    if depth == 0 or board.is_game_over():
+        return score_bored(board)
+
+    if is_maximizing_player:
+        max_eval = -float('inf')
+        for move in board.legal_moves:
+            board.push(move)
+            eval = minimax(board, depth - 1, False)
+            board.pop()
+            max_eval = max(max_eval, eval)
+        return max_eval
+    else:
+        min_eval = float('inf')
+        for move in board.legal_moves:
+            board.push(move)
+            eval = minimax(board, depth - 1, True)
+            board.pop()
+            min_eval = min(min_eval, eval)
+        return min_eval
+
+def get_best_move(board, depth):
     best_move = None
     best_score = -float('inf')
 
-    for move in board.legal_moves:
-        board.push(move)
-        score = score_bored(board)
-        board.pop()
+    moves = list(board.legal_moves)
+    with tqdm(total=len(moves), desc="FYODOR is thinking") as pbar:
+        for move in moves:
+            board.push(move)
+            score = minimax(board, depth-1, False)
+            board.pop()
 
-        if score > best_score:
-            best_score = score
-            best_move = move
+            if score > best_score:
+                best_score = score
+                best_move = move
+
+            pbar.update(1)
+            time.sleep(0.01)  # optional, to slow down the bar
 
     return best_move
 
@@ -71,7 +102,6 @@ def main():
     player_color = input("Choose your color (w for White, b for Black): ")
     player_color = player_color.lower()
 
-   
     while not board.is_game_over():
         print("\n")
         print(" ------------------------- ")
@@ -97,7 +127,7 @@ def main():
                     board.push(main_entry.move)  # FYODOR makes a move
             except:
                 print("No recommended move from opening book. FYODOR will select the best move.")
-                move = get_best_move(board)
+                move = get_best_move(board, 3)  # added depth parameter
                 print("FYODOR recommends: " + str(move))
                 board.push(move)
 
