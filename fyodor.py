@@ -40,7 +40,7 @@ def move_piece(board, move):
         print("Illegal move.")
         return False
     
-def score_bored(board):
+def score_board(board):
     if board.is_checkmate():
         if board.turn:
             return -float('inf')
@@ -57,7 +57,7 @@ def score_bored(board):
 
 def minimax(board, depth, alpha, beta, is_maximizing_player):
     if depth == 0 or board.is_game_over():
-        return score_bored(board)
+        return score_board(board)
 
     if is_maximizing_player:
         max_eval = -float('inf')
@@ -102,11 +102,12 @@ def get_best_move(board, depth):
 
     return best_move
 
-
 def main():
     board = chess.Board()
     player_color = input("Choose your color (w for White, b for Black): ")
     player_color = player_color.lower()
+
+    opening_books = ['./Human.bin', './baron30.bin']  # list of your opening books
 
     while not board.is_game_over():
         print("\n")
@@ -126,13 +127,19 @@ def main():
             if move_piece(board, move):
                 print_board(board)
         else:
-            try:
-                with chess.polyglot.open_reader("./Human.bin") as reader:
-                    main_entry = reader.weighted_choice(board)
-                    print("FYODOR recommends: " + str(main_entry.move))
-                    board.push(main_entry.move)  # FYODOR makes a move
-            except:
-                print("No recommended move from opening book. FYODOR will select the best move.")
+            moved = False
+            for book in opening_books:
+                try:
+                    with chess.polyglot.open_reader(book) as reader:
+                        main_entry = reader.weighted_choice(board)
+                        print("FYODOR recommends: " + str(main_entry.move))
+                        board.push(main_entry.move)  # FYODOR makes a move
+                        moved = True
+                        break
+                except:
+                    pass
+            if not moved:
+                print("No recommended move from opening books. FYODOR will select the best move.")
                 move = get_best_move(board, 5)  # added depth parameter
                 print("FYODOR recommends: " + str(move))
                 board.push(move)
